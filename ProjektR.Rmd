@@ -1,0 +1,34 @@
+---
+title: "ProjektR"
+output: html_document
+author: Andrzej Słowiński
+---
+
+
+napisac pobieranie paczki?
+
+##Użyte biblioteki
+```{r import bibliotek}
+library(dplyr)
+```
+```{r czyszczenie starych zmiennych}
+rm(list=ls())
+```
+
+
+```{r}
+data <- read.csv("/Users/andrzeslowinski/studia/sample_data.csv", sep = ";")
+
+delete_coulmn <- c("blob_coverage","part_step_FoFc_std_min","part_step_FoFc_std_max","part_step_FoFc_std_step")
+x <- data %>% select(-delete_coulmn)
+
+names(x)
+
+```
+```{r usuwanie danych dla wartości zmiennej res_name}
+v_rm <- c("UNK", "UNX", "UNL", "DUM", "N", "BLOB", "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "MSE", "PHE", "PRO", "SEC", "SER", "THR", "TRP", "TYR", "VAL", "DA", "DG", "DT", "DC", "DU", "A", "G", "T", "C", "U", "HOH", "H20", "WAT", "XCC")
+
+abc <- data %>% filter(!res_name %in% v_rm)
+
+```
+
