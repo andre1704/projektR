@@ -6,11 +6,15 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 ---
 
 ```{r instalacja paczek}
-install.packages("dplyr")
-install.packages("knitr")
-install.packages("ggplot2")
-install.packages("caret")
-install.packages("ggcorrplot")
+#install.packages("dplyr")
+#install.packages("knitr")
+#install.packages("ggplot2")
+#install.packages("caret")
+#install.packages("ggcorrplot")
+```
+```{r}
+
+#install.packages("caret", dependencies = c("Depends", "Suggests"))
 ```
 
 
@@ -27,34 +31,34 @@ library(ggcorrplot)
 
 ```{r czyszczenie starych zmiennych}
 rm(list=ls())
-Sys.setenv(LANG = "en")
+
 ```
 
 ```{r, cache=TRUE , odczyt danych}
-initial <- read.csv(file = "sample_data2.csv", nrows = 1000, sep = ';',  header = TRUE)
+initial <- read.csv(file = "all_summary.csv", nrows = 1000, sep = ';',  header = TRUE)
 classes <- sapply(initial, class)
-data <- read.csv("sample_data2.csv", sep = ";", comment.char = "", header = TRUE, na.strings = c('NAN'),blank.lines.skip = TRUE)
+data <- read.csv("all_summary.csv", sep = ";", comment.char = "", header = TRUE, na.strings = c('NAN'),blank.lines.skip = TRUE)
 
 ```
 
-```{r usuwanie danych dla wartoœci zmiennej res_name}
+```{r, cache=TRUE , usuwanie danych dla wartoœci zmiennej res_name }
 v_rm <- c("UNK", "UNX", "UNL", "DUM", "N", "BLOB", "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "MSE", "PHE", "PRO", "SEC", "SER", "THR", "TRP", "TYR", "VAL", "DA", "DG", "DT", "DC", "DU", "A", "G", "T", "C", "U", "HOH", "H20", "WAT", "XCC")
 
 data_exclude_some_res_names <- data %>% filter(!is.na(res_name), !is.nan(res_name),!res_name %in% v_rm)
 
 ```
 
-```{r, cache=TRUE, przetwarzanie brakujacych danych}
+```{r, cache=TRUE , przetwarzanie brakujacych danych}
 data_without_missing_val <- data_exclude_some_res_names %>% replace(is.na(.), 0)
 data_without_missing_val_distinct <- data_without_missing_val %>% distinct(pdb_code, res_name)
 
 ```
 
-```{r wstêpne podsumowanie danych}
-#kable(summary(data_without_missing_val))
+```{r, cache=TRUE , wstêpne podsumowanie danych}
+kable(summary(data_without_missing_val))
 ```
 
-```{r ograniczanie do 50 najpopularniejszych wartoœci}
+```{r, cache=TRUE , ograniczanie do 50 najpopularniejszych wartoœci}
 data_without_missing_val_distinct <- data_without_missing_val %>% distinct(pdb_code, res_name)
 names_of_RES_NAMES_first_50 <- data_without_missing_val_distinct %>% group_by(res_name) %>% summarise(n = n()) %>% arrange(desc(n)) %>% head(50) %>% select(res_name)
 names_of_RES_NAMES_first_50_vector <- unlist(names_of_RES_NAMES_first_50)
@@ -62,11 +66,11 @@ data_without_missing_val_50_most_popular <- data_without_missing_val  %>% filter
 
 ```
 
-```{r kolumny usuwane do klasyfikacji czysczenie}
+```{r, cache=TRUE , kolumny usuwane do klasyfikacji czysczenie}
 delete_coulmn <- c( "dict_atom_non_h_count", "dict_atom_non_h_electron_sum", "dict_atom_C_count", "dict_atom_N_count", "dict_atom_O_count", "dict_atom_S_count",  "title", "part_step_FoFc_std_min","part_step_FoFc_std_max","part_step_FoFc_std_step","fo_col", "fc_col", "weight_col", "grid_space", "solvent_radius", "solvent_opening_radius", "local_res_atom_count", "local_res_atom_non_h_count", "local_res_atom_non_h_occupancy_sum", "local_res_atom_non_h_electron_sum", "local_res_atom_non_h_electron_occupancy_sum", "local_res_atom_C_count", "local_res_atom_N_count", "local_res_atom_O_count", "local_res_atom_S_count","pdb_code", "res_name","res_id","chain_id", "blob_coverage","res_coverage","skeleton_data")
 ```
 
-```{r Korelacja }
+```{r, cache=TRUE , Korelacja }
 Sys.setenv(LANG = "pl")
 
 data_without_missing_val_50_most_popular_without_not_cor_collumn <- data_without_missing_val_50_most_popular %>% select(-delete_coulmn)
@@ -76,7 +80,7 @@ data_corelation <- cor(data_without_missing_val_50_most_popular_without_not_cor_
 ggcorrplot(data_corelation)
 ```
 
-```{r Okreœlenie ile przyk³adów ma ka¿da z klas (res_name).}
+```{r, cache=TRUE , Okreœlenie ile przyk³adów ma ka¿da z klas (res_name).}
 #pierwsze 50 popularnych
 res_name_number_of_data <- data_without_missing_val_distinct %>% group_by(res_name) %>% summarise(n = n()) %>% arrange(desc(n)) %>% head(10)
 
@@ -84,7 +88,7 @@ ggplot(res_name_number_of_data , aes(x = res_name, y = n, order = desc(n))) + ge
 
 ```
 
-```{r rozk³ad liczby atomów (local_res_atom_non_h_count) i elektronów (local_res_atom_non_h_electron_sum).}
+```{r, cache=TRUE , rozk³ad liczby atomów (local_res_atom_non_h_count) i elektronów (local_res_atom_non_h_electron_sum).}
 
 rozk <- stack(data_without_missing_val %>% select(local_res_atom_non_h_count, local_res_atom_non_h_electron_sum))
 
@@ -94,10 +98,57 @@ ggplot(rozk, aes(x = values)) + geom_density(aes(group=ind, colour=ind, fill=ind
 ```
 
 
-```{r tabela 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów i elektronów }
+```{r, cache=TRUE , tabela 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów i elektronów }
 
 
+local_atom_diffrence <- data_without_missing_val  %>%  mutate(diffr = abs(local_res_atom_non_h_count- dict_atom_non_h_count ))  %>% select(res_name, diffr) %>% group_by(diffr) %>%   arrange(desc(diffr)) %>% head(10)
 
+local_electron_diffrence <- data_without_missing_val  %>%  mutate(diffr = abs(local_res_atom_non_h_electron_sum - dict_atom_non_h_electron_sum ))  %>% select(res_name, diffr) %>% group_by(diffr) %>%  arrange(desc(diffr)) %>%  head(10)
+                                                            
+                                                            
+                                                            
+summary(local_atom_diffrence)                                                        
+summary(local_electron_diffrence)
 
 
 ```
+
+```{r, cache=TRUE , rozklad wartosci kolumn par01}
+
+
+par01 <- data_without_missing_val %>% select(part_01_shape_segments_count:part_01_density_Z_4_0)
+
+for (column_number in 1:length(par01)) {
+  column <- par01[,column_number]
+  mean_val <- mean(column)
+  
+    p <- ggplot() + aes(column) + geom_histogram(fill="red", col="black") + ylab(paste("number of ", names(par01[column_number]))) + xlab(names(par01[column_number])) + labs(title=paste("Histogram of ", names(par01[column_number]))) + geom_vline(xintercept=mean_val, color="blue", linetype="dotted", size=0.5)  + annotate("text", x = mean_val+10, y = -25, label = mean_val)
+  
+  print(p)
+
+
+
+}
+```
+
+```{r, cache=TRUE , regresja}
+
+Sys.setenv(LANG = "en")
+linear_model_data <- data_without_missing_val %>% select_if(is.numeric)
+linear_model_data_atom <- lm(local_res_atom_non_h_count ~ ., linear_model_data)
+linear_model_data_atom_summary <- summary(linear_model_data_atom)
+linear_model_data_atom_summary$r.squared
+linear_model_data_atom_summary$sigma
+
+
+linear_model_data <- data_without_missing_val %>% select_if(is.numeric)
+linear_model_data_electron <- lm(local_res_atom_non_h_electron_sum  ~ ., linear_model_data)
+linear_model_data_electron_summary <- summary(linear_model_data_electron)
+linear_model_data_electron_summary$r.squared
+linear_model_data_electron_summary$sigma
+
+```
+
+
+
+
