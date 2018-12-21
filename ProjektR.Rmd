@@ -1,7 +1,7 @@
 ---
 title: "ProjektR"
 output: html_document
-author: Andrzej S³owiñski
+author: Andrzej S?owi?ski
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 ---
 
@@ -14,11 +14,11 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 ```
 ```{r}
 
-#install.packages("caret", dependencies = c("Depends", "Suggests"))
+install.packages("caret", dependencies = c("Depends", "Suggests"))
 ```
 
 
-##U¿yte biblioteki
+##U?yte biblioteki
 ```{r import bibliotek}
 set.seed(42)
 library(dplyr)
@@ -35,13 +35,13 @@ rm(list=ls())
 ```
 
 ```{r, cache=TRUE , odczyt danych}
-initial <- read.csv(file = "all_summary.csv", nrows = 1000, sep = ';',  header = TRUE)
+initial <- read.csv(file = "sample_data2.csv", nrows = 1000, sep = ';',  header = TRUE)
 classes <- sapply(initial, class)
-data <- read.csv("all_summary.csv", sep = ";", comment.char = "", header = TRUE, na.strings = c('NAN'),blank.lines.skip = TRUE)
+data <- read.csv("sample_data2.csv", sep = ";", comment.char = "", header = TRUE, na.strings = c('NAN'),blank.lines.skip = TRUE)
 
 ```
 
-```{r, cache=TRUE , usuwanie danych dla wartoœci zmiennej res_name }
+```{r, cache=TRUE , usuwanie danych dla warto?ci zmiennej res_name }
 v_rm <- c("UNK", "UNX", "UNL", "DUM", "N", "BLOB", "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "MSE", "PHE", "PRO", "SEC", "SER", "THR", "TRP", "TYR", "VAL", "DA", "DG", "DT", "DC", "DU", "A", "G", "T", "C", "U", "HOH", "H20", "WAT", "XCC")
 
 data_exclude_some_res_names <- data %>% filter(!is.na(res_name), !is.nan(res_name),!res_name %in% v_rm)
@@ -54,11 +54,11 @@ data_without_missing_val_distinct <- data_without_missing_val %>% distinct(pdb_c
 
 ```
 
-```{r, cache=TRUE , wstêpne podsumowanie danych}
+```{r, cache=TRUE , wst?pne podsumowanie danych}
 kable(summary(data_without_missing_val))
 ```
 
-```{r, cache=TRUE , ograniczanie do 50 najpopularniejszych wartoœci}
+```{r, cache=TRUE , ograniczanie do 50 najpopularniejszych warto?ci}
 data_without_missing_val_distinct <- data_without_missing_val %>% distinct(pdb_code, res_name)
 names_of_RES_NAMES_first_50 <- data_without_missing_val_distinct %>% group_by(res_name) %>% summarise(n = n()) %>% arrange(desc(n)) %>% head(50) %>% select(res_name)
 names_of_RES_NAMES_first_50_vector <- unlist(names_of_RES_NAMES_first_50)
@@ -80,7 +80,7 @@ data_corelation <- cor(data_without_missing_val_50_most_popular_without_not_cor_
 ggcorrplot(data_corelation)
 ```
 
-```{r, cache=TRUE , Okreœlenie ile przyk³adów ma ka¿da z klas (res_name).}
+```{r, cache=TRUE , Okre?lenie ile przyk?ad?w ma ka?da z klas (res_name).}
 #pierwsze 50 popularnych
 res_name_number_of_data <- data_without_missing_val_distinct %>% group_by(res_name) %>% summarise(n = n()) %>% arrange(desc(n)) %>% head(10)
 
@@ -88,7 +88,7 @@ ggplot(res_name_number_of_data , aes(x = res_name, y = n, order = desc(n))) + ge
 
 ```
 
-```{r, cache=TRUE , rozk³ad liczby atomów (local_res_atom_non_h_count) i elektronów (local_res_atom_non_h_electron_sum).}
+```{r, cache=TRUE , rozk?ad liczby atom?w (local_res_atom_non_h_count) i elektron?w (local_res_atom_non_h_electron_sum).}
 
 rozk <- stack(data_without_missing_val %>% select(local_res_atom_non_h_count, local_res_atom_non_h_electron_sum))
 
@@ -98,7 +98,7 @@ ggplot(rozk, aes(x = values)) + geom_density(aes(group=ind, colour=ind, fill=ind
 ```
 
 
-```{r, cache=TRUE , tabela 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów i elektronów }
+```{r, cache=TRUE , tabela 10 klas z najwi?ksz? niezgodno?ci? liczby atom?w i elektron?w }
 
 
 local_atom_diffrence <- data_without_missing_val  %>%  mutate(diffr = abs(local_res_atom_non_h_count- dict_atom_non_h_count ))  %>% select(res_name, diffr) %>% group_by(diffr) %>%   arrange(desc(diffr)) %>% head(10)
@@ -149,6 +149,36 @@ linear_model_data_electron_summary$sigma
 
 ```
 
+```
+inTraining <- 
+    createDataPartition(
+        # atrybut do stratyfikacji
+        y = data_without_missing_val$Class,
+        # procent w zbiorze uczÄ…cym
+        p = .75,
+        # chcemy indeksy a nie listÄ™
+        list = FALSE)
 
+training <- data_without_missing_val[ inTraining,]
+testing  <- data_without_missing_val[-inTraining,]
+
+
+ctrl <- trainControl(
+    # powtÃ³rzona ocena krzyÅ¼owa
+    method = "repeatedcv",
+    # liczba podziaÅ‚Ã³w
+    number = 2,
+    # liczba powtÃ³rzeÅ„
+    repeats = 5)
+    
+    
+    fit <- train(Class ~ .,
+             data = training,
+             method = "rf",
+             trControl = ctrl,
+             # Paramter dla algorytmu uczÄ…cego
+             ntree = 10)
+
+```
 
 
