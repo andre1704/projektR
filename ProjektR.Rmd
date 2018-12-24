@@ -1,184 +1,200 @@
 ---
-title: "ProjektR"
+title: "ProjektR - zaawansowana eksploracja danych "
 output: html_document
-author: Andrzej S?owi?ski
+author: Andrzej S³owiñski
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 ---
+## Spis teœci
+1. [Podsumowanie projektu](#1)
+2. [Wykorzystane biblioteki](#2)
+3. [Wczytanie danych](#3)
+4. [Filtracja danych, usuniêcie czêœci danych na podstawie kolumn res_name](#4)
+5. [Przetworzenie brakuj¹cych danych](#5)
+6. [Podsumowanie zbioru i generacja statystyk](#6)
+7. [50 najpopularniejszych wartoœci  klasy res_name](#7)
+8. [Korelacja miêdzy zmiennymi](#8)
+9. [Okreœlenie licznoœci ka¿dej klasy res_name](#9)
+10. [Wykresy liczby atomów i elektronów](#10)
+11. [10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów i 10 klas z najwiêksz¹ niezgodnoœci¹ liczby elektronów](#11)
+12. [Rozk³ad wartoœci wszystkich kolumn](#12)
+13. [Regresja oszacowana na podstawie miar R^2 i RMSE](#13)
+14. [Klasyfikator przewiduj¹cy wartoœæ atrybutu res_name](#14)
 
-```{r instalacja paczek}
+#<a name="1"></a>
+##1. Podsumowanie projektu
+
+```{r czyszczenie starych zmiennych,  echo=FALSE}
+rm(list=ls())
+
+```
+
+```{r instalacja paczek ,echo=FALSE}
+Sys.setenv(LANG = "en")
 #install.packages("dplyr")
 #install.packages("knitr")
 #install.packages("ggplot2")
 #install.packages("caret")
 #install.packages("ggcorrplot")
-```
-```{r}
-
-install.packages("caret", dependencies = c("Depends", "Suggests"))
+#install.packages("caret", dependencies = c("Depends", "Suggests"))
 ```
 
+#<a name="2"></a>
+##2. Wykorzystane biblioteki
 
-##U?yte biblioteki
-```{r import bibliotek}
+```{r import bibliotek, warning=FALSE, message=FALSE}
 set.seed(42)
-library(dplyr)
 library(knitr)
 library(ggplot2)
 library(caret)
 library(ggcorrplot)
+library(dplyr)
 ```
 
+#<a name="3"></a>
+##3. Wczytanie danych
+Dane zostaj¹ zaczytane, poszczególnym komlumn¹ wyznaczone s¹ typy danych na podstawie wstêpnego wczytania próbki danych.
 
-```{r czyszczenie starych zmiennych}
-rm(list=ls())
-
-```
-
-```{r, cache=TRUE , odczyt danych}
+```{r odczyt danych, cache=TRUE , results='hide'}
 initial <- read.csv(file = "sample_data2.csv", nrows = 1000, sep = ';',  header = TRUE)
 classes <- sapply(initial, class)
 data <- read.csv("sample_data2.csv", sep = ";", comment.char = "", header = TRUE, na.strings = c('NAN'),blank.lines.skip = TRUE)
-
 ```
+#<a name="4"></a>
+##4. Filtracja danych, usuniêcie czêœci danych na podstawie kolumn res_name
+Zbudowany zosta³ wektor v_rm który pos³u¿y³ do usuniêcia czêœci danych, odfiltrowanie wartoœci z tego wektora odby³o siê wzglêdem kolumny res_name.
 
-```{r, cache=TRUE , usuwanie danych dla warto?ci zmiennej res_name }
+```{r usuwanie danych dla wartoœci zmiennej res_name, cache=TRUE , results='hide'}
 v_rm <- c("UNK", "UNX", "UNL", "DUM", "N", "BLOB", "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "MSE", "PHE", "PRO", "SEC", "SER", "THR", "TRP", "TYR", "VAL", "DA", "DG", "DT", "DC", "DU", "A", "G", "T", "C", "U", "HOH", "H20", "WAT", "XCC")
 
 data_exclude_some_res_names <- data %>% filter(!is.na(res_name), !is.nan(res_name),!res_name %in% v_rm)
 
 ```
+#<a name="5"></a>
+##5. Przetworzenie brakuj¹cych danych
 
-```{r, cache=TRUE , przetwarzanie brakujacych danych}
-data_without_missing_val <- data_exclude_some_res_names %>% replace(is.na(.), 0)
+```{r przetwarzanie brakujacych danych, cache=TRUE ,  results='hide'}
+data_exclude_some_res_names_1 <- data_exclude_some_res_names  %>% select(-skeleton_data)
+data_without_missing_val <- data_exclude_some_res_names_1 %>% replace(is.na(.), 0)
 data_without_missing_val_distinct <- data_without_missing_val %>% distinct(pdb_code, res_name)
 
 ```
 
-```{r, cache=TRUE , wst?pne podsumowanie danych}
+#<a name="6"></a>
+##6. Podsumowanie zbioru i generacja statystyk
+
+```{r wstêpne podsumowanie danych, cache=TRUE }
 kable(summary(data_without_missing_val))
 ```
 
-```{r, cache=TRUE , ograniczanie do 50 najpopularniejszych warto?ci}
+#<a name="7"></a>
+##7. 50 najpopularniejszych wartoœci klasy res_name
+Filtracja wczytanego i wstêpnie przetworzonego zbioru o najpopularniejsze 50 wartoœci kolumny res_name
+```{r ograniczanie do 50 najpopularniejszych wartoœci, cache=TRUE }
 data_without_missing_val_distinct <- data_without_missing_val %>% distinct(pdb_code, res_name)
 names_of_RES_NAMES_first_50 <- data_without_missing_val_distinct %>% group_by(res_name) %>% summarise(n = n()) %>% arrange(desc(n)) %>% head(50) %>% select(res_name)
 names_of_RES_NAMES_first_50_vector <- unlist(names_of_RES_NAMES_first_50)
 data_without_missing_val_50_most_popular <- data_without_missing_val  %>% filter(res_name %in% names_of_RES_NAMES_first_50_vector)
-
 ```
 
-```{r, cache=TRUE , kolumny usuwane do klasyfikacji czysczenie}
-delete_coulmn <- c( "dict_atom_non_h_count", "dict_atom_non_h_electron_sum", "dict_atom_C_count", "dict_atom_N_count", "dict_atom_O_count", "dict_atom_S_count",  "title", "part_step_FoFc_std_min","part_step_FoFc_std_max","part_step_FoFc_std_step","fo_col", "fc_col", "weight_col", "grid_space", "solvent_radius", "solvent_opening_radius", "local_res_atom_count", "local_res_atom_non_h_count", "local_res_atom_non_h_occupancy_sum", "local_res_atom_non_h_electron_sum", "local_res_atom_non_h_electron_occupancy_sum", "local_res_atom_C_count", "local_res_atom_N_count", "local_res_atom_O_count", "local_res_atom_S_count","pdb_code", "res_name","res_id","chain_id", "blob_coverage","res_coverage","skeleton_data")
+```{r kolumny usuwane do klasyfikacji i czysczenie, cache=TRUE , echo=FALSE }
+delete_coulmn <- c( "dict_atom_non_h_count", "dict_atom_non_h_electron_sum", "dict_atom_C_count", "dict_atom_N_count", "dict_atom_O_count", "dict_atom_S_count",  "title", "part_step_FoFc_std_min","part_step_FoFc_std_max","part_step_FoFc_std_step","fo_col", "fc_col", "weight_col", "grid_space", "solvent_radius", "solvent_opening_radius", "local_res_atom_count", "local_res_atom_non_h_count", "local_res_atom_non_h_occupancy_sum", "local_res_atom_non_h_electron_sum", "local_res_atom_non_h_electron_occupancy_sum", "local_res_atom_C_count", "local_res_atom_N_count", "local_res_atom_O_count", "local_res_atom_S_count","pdb_code", "res_name","res_id","chain_id", "blob_coverage","res_coverage")
 ```
 
-```{r, cache=TRUE , Korelacja }
-Sys.setenv(LANG = "pl")
+#<a name="8"></a>
+##8. Korelacja miêdzy zmiennymi
+Korelacja zbudowana dla tabeli zawieraj¹cej odfiltrowane wczeœniej dane(delete_coulmn) oraz zawieraj¹ce 50 najpopularniejszych wartoœci res_name. U¿yta funkcja korelacji z atrybutem "pairwise.complete.obs" który pomija puste wartoœci Na. 
 
+```{r Korelacja , cache=TRUE, warning=FALSE }
 data_without_missing_val_50_most_popular_without_not_cor_collumn <- data_without_missing_val_50_most_popular %>% select(-delete_coulmn)
-
 data_corelation <- cor(data_without_missing_val_50_most_popular_without_not_cor_collumn, use = "pairwise.complete.obs")
-
 ggcorrplot(data_corelation)
 ```
 
-```{r, cache=TRUE , Okre?lenie ile przyk?ad?w ma ka?da z klas (res_name).}
-#pierwsze 50 popularnych
+#<a name="9"></a>
+##9. Okreœlenie licznoœci ka¿dej klasy res_name
+Powy¿szy wykres ukazuje 10 klas res_name posiadaj¹cych najwiêcej przyk³adów.
+
+```{r  Okreœlenie ile przypadków ma ka¿da z klas (res_name), cache=TRUE }
 res_name_number_of_data <- data_without_missing_val_distinct %>% group_by(res_name) %>% summarise(n = n()) %>% arrange(desc(n)) %>% head(10)
-
 ggplot(res_name_number_of_data , aes(x = res_name, y = n, order = desc(n))) + geom_bar(stat="identity") 
-
 ```
 
-```{r, cache=TRUE , rozk?ad liczby atom?w (local_res_atom_non_h_count) i elektron?w (local_res_atom_non_h_electron_sum).}
+#<a name="10"></a>
+##10. Wykresy liczby atomów i elektronów
+Rozk³ad liczby atomów (local_res_atom_non_h_count) i elektronrów (local_res_atom_non_h_electron_sum)
 
-rozk <- stack(data_without_missing_val %>% select(local_res_atom_non_h_count, local_res_atom_non_h_electron_sum))
-
+```{r rozk³ad liczby atomów (local_res_atom_non_h_count) i elektronrów (local_res_atom_non_h_electron_sum), cache=TRUE }
+rozk <- stack(data_without_missing_val_50_most_popular %>% select(local_res_atom_non_h_count, local_res_atom_non_h_electron_sum))
 ggplot(rozk, aes(x = values)) + geom_density(aes(group=ind, colour=ind, fill=ind), alpha=0.3)
-
-
 ```
 
+#<a name="11"></a>
+##11. 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów i 10 klas z najwiêksz¹ niezgodnoœci¹ liczby elektronów
+Tabela przedtawiaj¹ce 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów
 
-```{r, cache=TRUE , tabela 10 klas z najwi?ksz? niezgodno?ci? liczby atom?w i elektron?w }
+```{r tabela 10 klas z najwiêksz¹ niezgodnoœci¹ liczby atomów , cache=TRUE, echo=FALSE }
+local_atom_diffrence <- data_without_missing_val_50_most_popular  %>%  mutate(diffr = abs(local_res_atom_non_h_count- dict_atom_non_h_count ))  %>% select(res_name, diffr) %>% group_by(diffr) %>%   arrange(desc(diffr)) %>% head(10)
+summary(local_atom_diffrence)
+kable(local_atom_diffrence)
+```
 
+Tabela przedtawiaj¹ca 10 klas z najwiêksz¹ niezgodnoœci¹ liczby elektronów
 
-local_atom_diffrence <- data_without_missing_val  %>%  mutate(diffr = abs(local_res_atom_non_h_count- dict_atom_non_h_count ))  %>% select(res_name, diffr) %>% group_by(diffr) %>%   arrange(desc(diffr)) %>% head(10)
-
-local_electron_diffrence <- data_without_missing_val  %>%  mutate(diffr = abs(local_res_atom_non_h_electron_sum - dict_atom_non_h_electron_sum ))  %>% select(res_name, diffr) %>% group_by(diffr) %>%  arrange(desc(diffr)) %>%  head(10)
-                                                            
-                                                            
-                                                            
-summary(local_atom_diffrence)                                                        
+```{r tabela 10 klas z najwiêksz¹ niezgodnoœci¹ liczby elektronów  , cache=TRUE, echo=FALSE}
+local_electron_diffrence <- data_without_missing_val  %>%  mutate(diffr = abs(local_res_atom_non_h_electron_sum - dict_atom_non_h_electron_sum ))  %>% 
+select(res_name, diffr) %>% group_by(diffr) %>%  arrange(desc(diffr)) %>%  head(10)
 summary(local_electron_diffrence)
-
-
+kable(local_electron_diffrence)
 ```
 
-```{r, cache=TRUE , rozklad wartosci kolumn par01}
+#<a name="12"></a>
+##12. Rozk³ad wartoœci wszystkich kolumn par01
+Poni¿ej wykresy pokazuj¹ce rozk³ad wartoœci wszystkich kolumn zaczynaj¹cych siê od part_01 z zaznaczeniem (graficznym i liczbowym) œredniej wartoœci.
 
-
-par01 <- data_without_missing_val %>% select(part_01_shape_segments_count:part_01_density_Z_4_0)
-
+```{r  rozklad wartosci kolumn par01, cache=TRUE, warning=FALSE, message=FALSE }
+par01 <- data_without_missing_val_50_most_popular %>% select(part_01_shape_segments_count:part_01_density_Z_4_0)
 for (column_number in 1:length(par01)) {
   column <- par01[,column_number]
   mean_val <- mean(column)
-  
-    p <- ggplot() + aes(column) + geom_histogram(fill="red", col="black") + ylab(paste("number of ", names(par01[column_number]))) + xlab(names(par01[column_number])) + labs(title=paste("Histogram of ", names(par01[column_number]))) + geom_vline(xintercept=mean_val, color="blue", linetype="dotted", size=0.5)  + annotate("text", x = mean_val+10, y = -25, label = mean_val)
-  
-  print(p)
-
-
-
+  p <- ggplot() + aes(column) + geom_histogram(fill="red", col="black") + ylab(paste("number of ", names(par01[column_number]))) + xlab(names(par01[column_number])) + labs(title=paste("Histogram of ", names(par01[column_number]))) + geom_vline(xintercept=mean_val, color="blue", linetype="dotted", size=0.5)  + annotate("text", x = mean_val, y = -50, label = mean_val)
+print(p)
 }
 ```
 
-```{r, cache=TRUE , regresja}
-
-Sys.setenv(LANG = "en")
-linear_model_data <- data_without_missing_val %>% select_if(is.numeric)
+#<a name="13"></a>
+##13. Trafnoœæ regresji oszacowana na podstawie miar R^2 i RMSE
+Miary R^2 i RMSE dla liczby atomów
+```{r  regresja, cache=TRUE, results='hide',echo=FALSE}
+linear_model_data <- data_without_missing_val_50_most_popular %>% select_if(is.numeric)
 linear_model_data_atom <- lm(local_res_atom_non_h_count ~ ., linear_model_data)
 linear_model_data_atom_summary <- summary(linear_model_data_atom)
 linear_model_data_atom_summary$r.squared
 linear_model_data_atom_summary$sigma
-
-
-linear_model_data <- data_without_missing_val %>% select_if(is.numeric)
+linear_model_data <- data_without_missing_val_50_most_popular %>% select_if(is.numeric)
 linear_model_data_electron <- lm(local_res_atom_non_h_electron_sum  ~ ., linear_model_data)
 linear_model_data_electron_summary <- summary(linear_model_data_electron)
 linear_model_data_electron_summary$r.squared
 linear_model_data_electron_summary$sigma
-
 ```
+RMSE dla atomów: `r linear_model_data_atom_summary$sigma`<br />
+R^2 dla atomów: `r linear_model_data_atom_summary$r.squared`<br />
 
-```
-inTraining <- 
-    createDataPartition(
-        # atrybut do stratyfikacji
-        y = data_without_missing_val$Class,
-        # procent w zbiorze uczÄ…cym
-        p = .75,
-        # chcemy indeksy a nie listÄ™
-        list = FALSE)
-
-training <- data_without_missing_val[ inTraining,]
-testing  <- data_without_missing_val[-inTraining,]
+RMSE dla elektronów: `r linear_model_data_electron_summary$sigma`<br />
+R^2 dla elektronów: `r linear_model_data_electron_summary$r.squared`<br />
 
 
-ctrl <- trainControl(
-    # powtÃ³rzona ocena krzyÅ¼owa
-    method = "repeatedcv",
-    # liczba podziaÅ‚Ã³w
-    number = 2,
-    # liczba powtÃ³rzeÅ„
-    repeats = 5)
-    
-    
-    fit <- train(Class ~ .,
-             data = training,
-             method = "rf",
-             trControl = ctrl,
-             # Paramter dla algorytmu uczÄ…cego
-             ntree = 10)
+#<a name="14"></a>
+##14. Klasyfikator
 
+```{r Klasyfikator}
+
+
+#inTraining <- createDataPartition(y = data_without_missing_val$res_name,p = .75,list = FALSE)
+#training <- data_without_missing_val[ inTraining,]
+#testing  <- data_without_missing_val[-inTraining,]
+#ctrl <- trainControl(method = "repeatedcv",number = 2,repeats = 5)
+#Class <- data_without_missing_val %>% select(res_name)
+#fit <- train(res_name  ~ .,data = training,method = "rf",trControl = ctrl,ntree = 10)
 ```
 
 
