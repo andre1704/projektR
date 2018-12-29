@@ -1,0 +1,9 @@
+base
+knitr
+ggplot2
+lattice
+caret
+ggcorrplot
+dplyr
+bindrcpp
+reshape2

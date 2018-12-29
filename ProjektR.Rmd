@@ -1,8 +1,10 @@
 ---
-title: "ProjektR - zaawansowana eksploracja danych "
-output: html_document
-author: Andrzej S³owiñski
+title: 'ProjektR - zaawansowana eksploracja danych '
+author: "Andrzej SÅ‚owiÅ„ski"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+  pdf_document: default
 ---
 ## Spis teœci
 1. [Podsumowanie projektu](#1)
@@ -22,10 +24,11 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 
 #<a name="1"></a>
 ##1. Podsumowanie projektu
+Dane które by³y przetwarzane, zawiera³y du¿¹ iloœæ wartoœci pustych, zosta³y one obs³u¿one i na tak przefiltrowanych danych. Dla ca³ego zbioru danych zosta³a wykonana filtracja o najpopularniejsze 50 wartoœci kolumny res_name aby dokonaæ poprawnej klasyfikacji oraz korelacji nale¿a³o usun¹æ z zbioru kolumny które by³y oznaczone w poleceniu jako dane wczeœniej przetworzone. Badanie korelacji miêdzy zmiennymi, pokaza³o, ¿e wiele z nich nie jest zale¿nych silnie od siebie, z zamieszczonego fragmentu wykresu korelacji widaæ, jak to wygl¹da dla próbki 10 wartoœci miêdzy sob¹. Zliczone zosta³y równie¿ ile dana wartoœæ res_name ma przypadków i na wykresie s¹ pokazane top 10 wartoœci. W przypadku budowy klasyfikatora pojawi³ siê problem „One or more factor levels in the outcome has no data” spowodowane to by³o przefiltrowaniem wczeœniejszym danych i odrzuceniem czêœci rekordów, dlatego te¿ zastosowana zosta³a metoda "classyfication_data$res_name <- factor(classyfication_data$res_name)". Zbiór danych zosta³ podzielony na treningowy i testuj¹cy
 
 ```{r czyszczenie starych zmiennych,  echo=FALSE}
 rm(list=ls())
-
+memory.limit(size=56000)
 ```
 
 ```{r instalacja paczek ,echo=FALSE}
@@ -54,10 +57,10 @@ library(dplyr)
 ##3. Wczytanie danych
 Dane zostaj¹ zaczytane, poszczególnym komlumn¹ wyznaczone s¹ typy danych na podstawie wstêpnego wczytania próbki danych.
 
-```{r odczyt danych, cache=TRUE , results='hide'}
-initial <- read.csv(file = "sample_data2.csv", nrows = 1000, sep = ';',  header = TRUE)
+```{r odczyt danych, cache.lazy = TRUE , results='hide'}
+initial <- read.csv(file = "all_summary.csv", nrows = 1000, sep = ';',  header = TRUE)
 classes <- sapply(initial, class)
-data <- read.csv("sample_data2.csv", sep = ";", comment.char = "", header = TRUE, na.strings = c('NAN'),blank.lines.skip = TRUE)
+data <- read.csv("all_summary.csv", sep = ";", comment.char = "", header = TRUE, na.strings = c('NAN'),blank.lines.skip = TRUE)
 ```
 #<a name="4"></a>
 ##4. Filtracja danych, usuniêcie czêœci danych na podstawie kolumn res_name
@@ -94,20 +97,29 @@ data_without_missing_val_distinct <- data_without_missing_val %>% distinct(pdb_c
 names_of_RES_NAMES_first_50 <- data_without_missing_val_distinct %>% group_by(res_name) %>% summarise(n = n()) %>% arrange(desc(n)) %>% head(50) %>% select(res_name)
 names_of_RES_NAMES_first_50_vector <- unlist(names_of_RES_NAMES_first_50)
 data_without_missing_val_50_most_popular <- data_without_missing_val  %>% filter(res_name %in% names_of_RES_NAMES_first_50_vector)
+kable(names_of_RES_NAMES_first_50_vector, col.names="50 najpopularniejszych wartoœci res_name")
+
 ```
 
 ```{r kolumny usuwane do klasyfikacji i czysczenie, cache=TRUE , echo=FALSE }
 delete_coulmn <- c( "dict_atom_non_h_count", "dict_atom_non_h_electron_sum", "dict_atom_C_count", "dict_atom_N_count", "dict_atom_O_count", "dict_atom_S_count",  "title", "part_step_FoFc_std_min","part_step_FoFc_std_max","part_step_FoFc_std_step","fo_col", "fc_col", "weight_col", "grid_space", "solvent_radius", "solvent_opening_radius", "local_res_atom_count", "local_res_atom_non_h_count", "local_res_atom_non_h_occupancy_sum", "local_res_atom_non_h_electron_sum", "local_res_atom_non_h_electron_occupancy_sum", "local_res_atom_C_count", "local_res_atom_N_count", "local_res_atom_O_count", "local_res_atom_S_count","pdb_code", "res_name","res_id","chain_id", "blob_coverage","res_coverage")
+delete_coulmn_not_res <- c( "dict_atom_non_h_count", "dict_atom_non_h_electron_sum", "dict_atom_C_count", "dict_atom_N_count", "dict_atom_O_count", "dict_atom_S_count",  "title", "part_step_FoFc_std_min","part_step_FoFc_std_max","part_step_FoFc_std_step","fo_col", "fc_col", "weight_col", "grid_space", "solvent_radius", "solvent_opening_radius", "local_res_atom_count", "local_res_atom_non_h_count", "local_res_atom_non_h_occupancy_sum", "local_res_atom_non_h_electron_sum", "local_res_atom_non_h_electron_occupancy_sum", "local_res_atom_C_count", "local_res_atom_N_count", "local_res_atom_O_count", "local_res_atom_S_count","pdb_code", "res_id","chain_id", "blob_coverage","res_coverage")
 ```
 
 #<a name="8"></a>
 ##8. Korelacja miêdzy zmiennymi
-Korelacja zbudowana dla tabeli zawieraj¹cej odfiltrowane wczeœniej dane(delete_coulmn) oraz zawieraj¹ce 50 najpopularniejszych wartoœci res_name. U¿yta funkcja korelacji z atrybutem "pairwise.complete.obs" który pomija puste wartoœci Na. 
+Korelacja zbudowana dla tabeli zawieraj¹cej odfiltrowane wczeœniej dane(delete_coulmn) oraz zawieraj¹ce 50 najpopularniejszych wartoœci res_name. U¿yta funkcja korelacji z atrybutem "pairwise.complete.obs" który pomija puste wartoœci Na. Z uwagi na du¿¹ liczbê wartoœæi dla których tworzone s¹ korelacje, przez co wykres staje siê nieczytelny, zamieszczony zostaje fragment wykresu, z którego mo¿na wyczytaæ które dane s¹ silnie skorelowane a które nie.
 
 ```{r Korelacja , cache=TRUE, warning=FALSE }
 data_without_missing_val_50_most_popular_without_not_cor_collumn <- data_without_missing_val_50_most_popular %>% select(-delete_coulmn)
 data_corelation <- cor(data_without_missing_val_50_most_popular_without_not_cor_collumn, use = "pairwise.complete.obs")
-ggcorrplot(data_corelation)
+ggcorrplot(data_corelation[100:110,100:110])
+data_without_missing_val_50_most_popular_without_not_cor_collumn_res<- data_without_missing_val_50_most_popular %>% select(-delete_coulmn_not_res)
+
+
+
+
+
 ```
 
 #<a name="9"></a>
@@ -153,12 +165,15 @@ Poni¿ej wykresy pokazuj¹ce rozk³ad wartoœci wszystkich kolumn zaczynaj¹cych siê 
 
 ```{r  rozklad wartosci kolumn par01, cache=TRUE, warning=FALSE, message=FALSE }
 par01 <- data_without_missing_val_50_most_popular %>% select(part_01_shape_segments_count:part_01_density_Z_4_0)
+vectors = c()
+
 for (column_number in 1:length(par01)) {
   column <- par01[,column_number]
   mean_val <- mean(column)
   p <- ggplot() + aes(column) + geom_histogram(fill="red", col="black") + ylab(paste("number of ", names(par01[column_number]))) + xlab(names(par01[column_number])) + labs(title=paste("Histogram of ", names(par01[column_number]))) + geom_vline(xintercept=mean_val, color="blue", linetype="dotted", size=0.5)  + annotate("text", x = mean_val, y = -50, label = mean_val)
 print(p)
 }
+
 ```
 
 #<a name="13"></a>
@@ -185,16 +200,25 @@ R^2 dla elektronów: `r linear_model_data_electron_summary$r.squared`<br />
 
 #<a name="14"></a>
 ##14. Klasyfikator
+Buduj¹c klasyfikator dla klasy res_name u¿y³em danych wczeœniej przefiltrowanych o Na, dodatkowo ograniczonych do wyst¹pieñ 50 najpopularniejszych res_NAME.
 
-```{r Klasyfikator}
 
 
-#inTraining <- createDataPartition(y = data_without_missing_val$res_name,p = .75,list = FALSE)
-#training <- data_without_missing_val[ inTraining,]
-#testing  <- data_without_missing_val[-inTraining,]
-#ctrl <- trainControl(method = "repeatedcv",number = 2,repeats = 5)
-#Class <- data_without_missing_val %>% select(res_name)
-#fit <- train(res_name  ~ .,data = training,method = "rf",trControl = ctrl,ntree = 10)
+```{r Klasyfikator, cache=TRUE,warning=FALSE, message=FALSE}
+classyfication_data <- data_without_missing_val_50_most_popular_without_not_cor_collumn_res
+classyfication_data$res_name <- factor(classyfication_data$res_name)
+
+inTraining <- createDataPartition(y = classyfication_data$res_name,p = .8,list = FALSE)
+training <- classyfication_data[ inTraining,]
+testing  <- classyfication_data[-inTraining,]
+
+training$res_name <- factor(training$res_name)
+testing$res_name <- factor(testing$res_name)
+
+ctrl <- trainControl(method = "repeatedcv",number = 2,repeats = 5)
+fit <- train(res_name  ~ .,data = training,method = "rf",trControl = ctrl,ntree = 10)
+fit
 ```
+
 
 
