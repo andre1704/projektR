@@ -1,6 +1,6 @@
 ---
 title: 'ProjektR - zaawansowana eksploracja danych '
-author: "Andrzej SÅ‚owiÅ„ski"
+author: "Andrzej S³owiñski"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document: default
